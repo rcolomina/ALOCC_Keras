@@ -86,14 +86,26 @@ class ALOCC_Model():
           logging.basicConfig(filename='ALOCC_loss.log', level=logging.INFO)
 
         if self.dataset_name == 'mnist':
-          (X_train, y_train), (_, _) = mnist.load_data()
-          # Make the data range between 0~1.
-          X_train = X_train / 255
-          specific_idx = np.where(y_train == self.attention_label)[0]
-          self.data = X_train[specific_idx].reshape(-1, 28, 28, 1)
-          self.c_dim = 1
+            
+            #from landsat_data_loader import LandsatDataLoader
+            #input_folder = '/QCOLT/QCOLT_DEV_OPS//TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'
+            #landsatDataLoader = LandsatDataLoader(input_folder)            
+            #X_train = landsatDataLoader.load_data()
+            #self.data = X_train.reshape(-1,28,28,1)
+            #self.c_dim = 1
+            
+            (X_train, y_train), (_, _) = mnist.load_data()                        
+            #Make the data range between 0~1.
+            X_train = X_train / 255
+            specific_idx = np.where(y_train == self.attention_label)[0]
+            self.data = X_train[specific_idx].reshape(-1, 28, 28, 1)
+            self.c_dim = 1
+            
+        elif self.dataset_name == 'landsat':
+            pass
+            
         else:
-          assert('Error in loading dataset')
+            assert('Error in loading dataset')
 
         self.grayscale = (self.c_dim == 1)
         self.build_model()
@@ -109,13 +121,17 @@ class ALOCC_Model():
         """
         image = Input(shape=input_shape, name='z')
         # Encoder.
-        x = Conv2D(filters=self.df_dim * 2, kernel_size = 5, strides=2, padding='same', name='g_encoder_h0_conv')(image)
+        x = Conv2D(filters=self.df_dim * 2, kernel_size = 5,
+                   strides=2, padding='same', name='g_encoder_h0_conv')(image)
+        
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
-        x = Conv2D(filters=self.df_dim * 4, kernel_size = 5, strides=2, padding='same', name='g_encoder_h1_conv')(x)
+        x = Conv2D(filters=self.df_dim * 4, kernel_size = 5,
+                   strides=2, padding='same', name='g_encoder_h1_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
-        x = Conv2D(filters=self.df_dim * 8, kernel_size = 5, strides=2, padding='same', name='g_encoder_h2_conv')(x)
+        x = Conv2D(filters=self.df_dim * 8, kernel_size = 5,
+                   strides=2, padding='same', name='g_encoder_h2_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
 
@@ -209,12 +225,17 @@ class ALOCC_Model():
         if self.dataset_name == 'mnist':
             # Get a batch of sample images with attention_label to export as montage.
             sample = self.data[0:batch_size]
-
+        elif self.dataset_name == 'landsat':
+            # TODO: Get batch from data
+            pass
+            
         # Export images as montage, sample_input also use later to generate sample R network outputs during training.
         sample_inputs = np.array(sample).astype(np.float32)
         os.makedirs(self.sample_dir, exist_ok=True)
-        scipy.misc.imsave('./{}/train_input_samples.jpg'.format(self.sample_dir), montage(sample_inputs[:,:,:,0]))
 
+        import cv2
+        cv2.imwrite('./{}/train_input_samples.jpg'.format(self.sample_dir), montage(sample_inputs[:,:,:,0]))
+        
         counter = 1
         # Record generator/R network reconstruction training losses.
         plot_epochs = []
@@ -223,7 +244,10 @@ class ALOCC_Model():
         # Load traning data, add random noise.
         if self.dataset_name == 'mnist':
             sample_w_noise = get_noisy_data(self.data)
-
+        elif self.dataset_name == 'landsat':
+            # TODO: apply noise to image
+            pass
+            
         # Adversarial ground truths
         ones = np.ones((batch_size, 1))
         zeros = np.zeros((batch_size, 1))
@@ -233,7 +257,8 @@ class ALOCC_Model():
             if self.dataset_name == 'mnist':
                 # Number of batches computed by total number of target data / batch size.
                 batch_idxs = len(self.data) // batch_size
-             
+
+                
             for idx in range(0, batch_idxs):
                 # Get a batch of images and add random noise.
                 if self.dataset_name == 'mnist':
@@ -269,6 +294,9 @@ class ALOCC_Model():
 
             # Save the checkpoint end of each epoch.
             self.save(epoch)
+            plt.plot(plot_epochs,plot_g_recon_losses)
+            plt.savefig('plot_g_recon_losses_{}.png'.format(epoch))
+
         # Export the Generator/R network reconstruction losses as a plot.
         plt.title('Generator/R network reconstruction losses')
         plt.xlabel('Epoch')
@@ -295,5 +323,11 @@ class ALOCC_Model():
 
 
 if __name__ == '__main__':
+
     model = ALOCC_Model(dataset_name='mnist', input_height=28,input_width=28)
-    model.train(epochs=5, batch_size=128, sample_interval=500)
+    model.train(epochs=5, batch_size=100, sample_interval=500)
+
+    #model = ALOCC_Model(dataset_name='landsat', input_height=28,input_width=28)
+    #model.train(epochs=5, batch_size=128, sample_interval=500)
+
+    

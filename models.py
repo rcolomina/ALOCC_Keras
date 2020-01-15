@@ -88,12 +88,13 @@ class ALOCC_Model():
         if self.dataset_name == 'mnist':
             
             from landsat_data_loader import LandsatDataLoader
-            input_folder = '/media/rcolomina/Toshiba640/TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'
+            root = "/QCOLT/QCOLT_DEV_OPS/"
+            #root = "/media/rcolomina/Toshiba640"
+            input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'            
             landsatDataLoader = LandsatDataLoader(input_folder)            
             X_train = landsatDataLoader.load_data()
             X_train = X_train / 255
-            #print(X_train[0])
-            #exit()
+
             self.data = X_train.reshape(-1,28,28,1)
             self.c_dim = 1
             
@@ -237,7 +238,8 @@ class ALOCC_Model():
         os.makedirs(self.sample_dir, exist_ok=True)
 
         import cv2
-        cv2.imwrite('./{}/train_input_samples.jpg'.format(self.sample_dir), montage(sample_inputs[:,:,:,0]))
+        cv2.imwrite('./{}/train_input_samples.jpg'.format(self.sample_dir), montage(sample_inputs
+                                                                                    [:,:,:,0]))
         
         counter = 1
         # Record generator/R network reconstruction training losses.
@@ -268,10 +270,12 @@ class ALOCC_Model():
                     batch = self.data[idx * batch_size:(idx + 1) * batch_size]
                     batch_noise = sample_w_noise[idx * batch_size:(idx + 1) * batch_size]
                     batch_clean = self.data[idx * batch_size:(idx + 1) * batch_size]
+                    
                 # Turn batch images data to float32 type.
                 batch_images = np.array(batch).astype(np.float32)
                 batch_noise_images = np.array(batch_noise).astype(np.float32)
                 batch_clean_images = np.array(batch_clean).astype(np.float32)
+                
                 if self.dataset_name == 'mnist':
                     batch_fake_images = self.generator.predict(batch_noise_images)
                     # Update D network, minimize real images inputs->D-> ones, noisy z->R->D->zeros loss.
@@ -283,6 +287,7 @@ class ALOCC_Model():
                     g_loss = self.adversarial_model.train_on_batch(batch_noise_images, [batch_clean_images, ones])    
                     plot_epochs.append(epoch + idx/batch_idxs)
                     plot_g_recon_losses.append(g_loss[1])
+                    
                 counter += 1
                 msg = 'Epoch:[{0}]-[{1}/{2}] --> d_loss: {3:>0.3f}, g_loss:{4:>0.3f}, g_recon_loss:{4:>0.3f}'.format(epoch, idx, batch_idxs, d_loss_real+d_loss_fake, g_loss[0], g_loss[1])
                 print(msg)

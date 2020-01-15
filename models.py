@@ -87,19 +87,22 @@ class ALOCC_Model():
 
         if self.dataset_name == 'mnist':
             
-            #from landsat_data_loader import LandsatDataLoader
-            #input_folder = '/QCOLT/QCOLT_DEV_OPS//TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'
-            #landsatDataLoader = LandsatDataLoader(input_folder)            
-            #X_train = landsatDataLoader.load_data()
-            #self.data = X_train.reshape(-1,28,28,1)
-            #self.c_dim = 1
-            
-            (X_train, y_train), (_, _) = mnist.load_data()                        
-            #Make the data range between 0~1.
+            from landsat_data_loader import LandsatDataLoader
+            input_folder = '/media/rcolomina/Toshiba640/TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'
+            landsatDataLoader = LandsatDataLoader(input_folder)            
+            X_train = landsatDataLoader.load_data()
             X_train = X_train / 255
-            specific_idx = np.where(y_train == self.attention_label)[0]
-            self.data = X_train[specific_idx].reshape(-1, 28, 28, 1)
+            #print(X_train[0])
+            #exit()
+            self.data = X_train.reshape(-1,28,28,1)
             self.c_dim = 1
+            
+            #(X_train, y_train), (_, _) = mnist.load_data()                        
+            #Make the data range between 0~1.
+            #X_train = X_train / 255
+            #specific_idx = np.where(y_train == self.attention_label)[0]
+            #self.data = X_train[specific_idx].reshape(-1, 28, 28, 1)
+            #self.c_dim = 1
             
         elif self.dataset_name == 'landsat':
             pass
@@ -278,7 +281,7 @@ class ALOCC_Model():
                     # Update R network twice, minimize noisy z->R->D->ones and reconstruction loss.
                     self.adversarial_model.train_on_batch(batch_noise_images, [batch_clean_images, ones])
                     g_loss = self.adversarial_model.train_on_batch(batch_noise_images, [batch_clean_images, ones])    
-                    plot_epochs.append(epoch+idx/batch_idxs)
+                    plot_epochs.append(epoch + idx/batch_idxs)
                     plot_g_recon_losses.append(g_loss[1])
                 counter += 1
                 msg = 'Epoch:[{0}]-[{1}/{2}] --> d_loss: {3:>0.3f}, g_loss:{4:>0.3f}, g_recon_loss:{4:>0.3f}'.format(epoch, idx, batch_idxs, d_loss_real+d_loss_fake, g_loss[0], g_loss[1])

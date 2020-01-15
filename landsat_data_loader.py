@@ -19,7 +19,7 @@ def find_list_files(pattern_filename, path):
 
 class LandsatDataLoader:
     def __init__(self, input_folder):
-        
+        self.X_train = None
         self.input_files  = [f for f in find_list_files("LS*png",input_folder)]
         
     def load_data(self):
@@ -35,8 +35,15 @@ class LandsatDataLoader:
             list_samples.append(image_gray)
             
         X_train = np.array(list_samples)
+        self.X_train = X_train
         return X_train
 
+    def normal_sample(self):
+        pass
+
+    def abnormal_sample(self):
+        pass
+    
 if __name__ == '__main__':
     input_folder = '/QCOLT/QCOLT_DEV_OPS//TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'
     dataLoader = LandsatDataLoader(input_folder)

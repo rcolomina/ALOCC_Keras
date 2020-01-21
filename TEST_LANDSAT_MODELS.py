@@ -19,25 +19,28 @@ import numpy as np
 from landsat_data_loader import LandsatDataLoader
 
 self = ALOCC_Model(dataset_name='mnist', input_height=28,input_width=28)
-self.adversarial_model.load_weights('./checkpoint/ALOCC_Model_4.h5')
+self.adversarial_model.load_weights('./checkpoint/ALOCC_Model_9.h5')
 
 root = "/QCOLT/QCOLT_DEV_OPS/"
-path = root +'/TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'    
+path = root +'/TDS_NOVELTY_DETECTION/EXP_02/nominal_chips/'    
+
 loader = LandsatDataLoader(path)   
+
 X_train = loader.load_data()
 X_train = X_train / 255
 
 print("Number of samples loaded =",X_train.shape[0])
 print("Dimensions (H,W) = ({},{})".format(X_train.shape[1],X_train.shape[2]))
 
-
 def resize_img(img,target_edge=500):
     return cv2.resize(img,
                       (target_edge,target_edge),
                       interpolation = cv2.INTER_AREA)
 
+
 def test_reconstruction(index=0, show_images=False, res_edge = 28):
     data = X_train[index].reshape(-1, res_edge, res_edge, 1)[0:1]
+    #print(data.shape)
 
     model_predicts = self.adversarial_model.predict(data)
     input_image = data[0].reshape((res_edge, res_edge))
@@ -64,16 +67,21 @@ def test_reconstruction(index=0, show_images=False, res_edge = 28):
 # Test on first images
 
 montage = test_reconstruction(0)
-for i in range(1,10):
+
+for i in [25*i for i in range(1,20)]:
     new_img = test_reconstruction(i)
     montage = np.vstack((montage,new_img))
-        
-cv2.imshow("montage",montage)
-cv2.waitKey()
 
-montage_res = resize_img(montage,400)
-cv2.imshow("montage",montage_res)
-cv2.waitKey()
+#np.save("montage.npy",montage) 
+#cv2.imshow("montage",montage)
+#cv2.waitKey()
+cv2.imwrite("montage.png",montage*256)
+
+#montage_res = resize_img(montage,400)
+#np.save("montage_res.npy",montage_res)
+#cv2.imshow("montage",montage_res)
+#cv2.waitKey()
+#cv2.imwrite("montage_resized.png",montage_res*256)
 
 
 

@@ -6,6 +6,7 @@ from keras.layers import BatchNormalization, Activation, Embedding, ZeroPadding2
 from keras.layers import Concatenate
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D, Conv2DTranspose
+from keras.layers import MaxPooling2D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam, RMSprop
 from keras import losses
@@ -90,7 +91,7 @@ class ALOCC_Model():
             from landsat_data_loader import LandsatDataLoader
             root = "/QCOLT/QCOLT_DEV_OPS/"
             #root = "/media/rcolomina/Toshiba640"
-            input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_02//nominal_chips/'            
+            input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_02/nominal_chips/'            
             landsatDataLoader = LandsatDataLoader(input_folder)            
             X_train = landsatDataLoader.load_data()
             X_train = X_train / 255
@@ -114,6 +115,123 @@ class ALOCC_Model():
         self.grayscale = (self.c_dim == 1)
         self.build_model()
 
+    def build_generator_qcolt(self, input_shape):
+        input_img = Input(shape=input_shape, name='z')
+        
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+
+        encoded = MaxPooling2D((2,2), padding='same')(x)
+
+        # this point representaion is (4,4,8) i.e. 128 dimensional
+
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(16, (3,3), activation='relu')(x)
+        x = UpSampling2D((2,2))(x)
+        
+        decoded = Conv2D(1, (3,3), activation='sigmoid', padding='same')(x)
+
+        autoencoder = Model(input_img, decoded)
+        return autoencoder
+
+    def build_generator_qcolt_deep(self, input_shape):
+        input_img = Input(shape=input_shape, name='z')
+
+        print(input_img.shape)
+        #exit()
+        
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        x = MaxPooling2D((2,2), padding='same')(x)        
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+
+        encoded = MaxPooling2D((2,2), padding='same')(x)
+
+        # this point representaion is (4,4,8) i.e. 128 dimensional
+        print(encoded.shape)
+
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+        x = UpSampling2D((2,2))(x)                
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = UpSampling2D((2,2))(x)                
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(16, (3,3), activation='relu')(x)
+        x = UpSampling2D((2,2))(x)
+
+        #from keras
+        
+        decoded = Conv2D(1, (3,3), activation='sigmoid', padding='same')(x)
+
+        #print(decoded.shape)
+
+        #exit()
+        autoencoder = Model(input_img, decoded)
+        return autoencoder
+
+    def build_generator_qcolt_deep_2(self, input_shape):
+        input_img = Input(shape=input_shape, name='z')
+
+        print(input_img.shape)
+        
+        x = Conv2D(32, (3,3), activation='relu', padding='same')(input_img)
+        x = Conv2D(32, (3,3), activation='relu', padding='same')(input_img)
+        x = MaxPooling2D((2,2), padding='same')(x)        
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)        
+        x = MaxPooling2D((2,2), padding='same')(x)        
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+
+        encoded = MaxPooling2D((2,2), padding='same')(x)
+
+        # this point representaion is (4,4,8) i.e. 128 dimensional
+
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)        
+        x = UpSampling2D((2,2))(x)                
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = UpSampling2D((2,2))(x)                
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(16, (3,3), activation='relu')(x)
+        x = UpSampling2D((2,2))(x)
+        #x = Conv2D(16, (3,3), activation='relu')(x)
+        #x = UpSampling2D((2,2))(x)
+
+        #from keras
+        
+        decoded = Conv2D(1, (3,3), activation='sigmoid', padding='same')(x)
+
+        #print(decoded.shape)
+
+        #exit()
+        autoencoder = Model(input_img, decoded)
+        return autoencoder
+
+    
+    
+        
     def build_generator(self, input_shape):
         """Build the generator/R network.
         
@@ -147,15 +265,21 @@ class ALOCC_Model():
         # x = BatchNormalization()(x)
         # x = Conv2DTranspose(self.c_dim,    kernel_size = 5, strides=2, activation='tanh', padding='same', output_padding=1, name='g_decoder_h2')(x)
 
-        x = Conv2D(self.gf_dim*1, kernel_size=5, activation='relu', padding='same')(x)
+        x = Conv2D(self.gf_dim*1, kernel_size=5,
+                   activation='relu', padding='same', name='g_decoded_h3_conv')(x)
         x = UpSampling2D((2, 2))(x)
-        x = Conv2D(self.gf_dim*1, kernel_size=5, activation='relu', padding='same')(x)
+        x = Conv2D(self.gf_dim*1, kernel_size=5,
+                   activation='relu', padding='same', name='g_decoded_h4_conv')(x)
         x = UpSampling2D((2, 2))(x)
         x = Conv2D(self.gf_dim*2, kernel_size=3, activation='relu')(x)
         x = UpSampling2D((2, 2))(x)
-        x = Conv2D(self.c_dim, kernel_size=5, activation='sigmoid', padding='same')(x)
+        x = Conv2D(self.c_dim, kernel_size=5,
+                   activation='sigmoid', padding='same', name='g_decoded_h5_conv')(x)
+              
         return Model(image, x, name='R')
 
+    
+    
     def build_discriminator(self, input_shape):
         """Build the discriminator/D network
         
@@ -168,23 +292,28 @@ class ALOCC_Model():
         """
 
         image = Input(shape=input_shape, name='d_input')
-        x = Conv2D(filters=self.df_dim, kernel_size = 5, strides=2, padding='same', name='d_h0_conv')(image)
+        x = Conv2D(filters=self.df_dim, kernel_size = 5, strides=2, padding='same',
+                   name='d_h0_conv')(image)
         x = LeakyReLU()(x)
 
-        x = Conv2D(filters=self.df_dim*2, kernel_size = 5, strides=2, padding='same', name='d_h1_conv')(x)
+        x = Conv2D(filters=self.df_dim*2, kernel_size = 5, strides=2, padding='same',
+                   name='d_h1_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
 
-        x = Conv2D(filters=self.df_dim*4, kernel_size = 5, strides=2, padding='same', name='d_h2_conv')(x)
+        x = Conv2D(filters=self.df_dim*4, kernel_size = 5, strides=2, padding='same',
+                   name='d_h2_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
 
-        x = Conv2D(filters=self.df_dim*8, kernel_size = 5, strides=2, padding='same', name='d_h3_conv')(x)
+        x = Conv2D(filters=self.df_dim*8, kernel_size = 5, strides=2, padding='same',
+                   name='d_h3_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
 
         x = Flatten()(x)
-        x = Dense(1, activation='sigmoid', name='d_h3_lin')(x)
+        x = Dense(1, activation='sigmoid',
+                  name='d_h3_lin')(x)
 
         return Model(image, x, name='D')
 
@@ -199,7 +328,12 @@ class ALOCC_Model():
         self.discriminator.compile(optimizer=optimizer, loss='binary_crossentropy')
 
         # Construct generator/R network.
-        self.generator = self.build_generator(image_dims)
+        #self.generator = self.build_generator(image_dims)
+        self.generator = self.build_generator_qcolt(image_dims)
+        #self.generator = self.build_generator_qcolt_deep(image_dims)
+        #self.generator = self.build_generator_qcolt_deep_2(image_dims)
+
+        
         img = Input(shape=image_dims)
 
         reconstructed_img = self.generator(img)
@@ -214,10 +348,13 @@ class ALOCC_Model():
             loss_weights=[self.r_alpha, 1],
             optimizer=optimizer)
 
-        print('\n\rdiscriminator')
+        print('reconstructor')
+        self.generator.summary()
+        
+        print('discriminator')
         self.discriminator.summary()
 
-        print('\n\adversarial_model')
+        print('adversarial_model')
         self.adversarial_model.summary()
 
     
@@ -302,8 +439,8 @@ class ALOCC_Model():
 
             # Save the checkpoint end of each epoch.
             self.save(epoch)
-            plt.plot(plot_epochs,plot_g_recon_losses)
-            plt.savefig('plot_g_recon_losses_{}.png'.format(epoch))
+            #plt.plot(plot_epochs,plot_g_recon_losses)
+            #plt.savefig('plot_g_recon_losses_{}.png'.format(epoch))
 
         # Export the Generator/R network reconstruction losses as a plot.
         plt.title('Generator/R network reconstruction losses')
@@ -333,7 +470,7 @@ class ALOCC_Model():
 if __name__ == '__main__':
 
     model = ALOCC_Model(dataset_name='mnist', input_height=28,input_width=28)
-    model.train(epochs=5, batch_size=100, sample_interval=500)
+    model.train(epochs=10, batch_size=500, sample_interval=9000)
 
     #model = ALOCC_Model(dataset_name='landsat', input_height=28,input_width=28)
     #model.train(epochs=5, batch_size=128, sample_interval=500)

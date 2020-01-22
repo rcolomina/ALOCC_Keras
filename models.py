@@ -7,6 +7,9 @@ from keras.layers import Concatenate
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D, Conv2DTranspose
 from keras.layers import MaxPooling2D
+from keras.layers import InputLayer
+
+
 from keras.models import Sequential, Model
 from keras.optimizers import Adam, RMSprop
 from keras import losses
@@ -115,6 +118,20 @@ class ALOCC_Model():
         self.grayscale = (self.c_dim == 1)
         self.build_model()
 
+    def build_generator_qcolt_simple(self, input_shape, code_size = 28):
+
+        model = Sequential()
+
+        model.add(InputLayer(input_shape))
+        model.add(Flatten())
+        model.add(Dense(784,activation='relu'))
+        model.add(Dense(50,activation='relu'))
+        model.add(Dense(784,activation='relu'))
+        model.add(Reshape(input_shape))
+
+        return model
+                
+        
     def build_generator_qcolt(self, input_shape):
         input_img = Input(shape=input_shape, name='z')
         
@@ -332,7 +349,9 @@ class ALOCC_Model():
         self.generator = self.build_generator_qcolt(image_dims)
         #self.generator = self.build_generator_qcolt_deep(image_dims)
         #self.generator = self.build_generator_qcolt_deep_2(image_dims)
+        #self.generator = self.build_generator_qcolt_simple(image_dims, code_size = 28)
 
+        
         
         img = Input(shape=image_dims)
 
@@ -470,8 +489,11 @@ class ALOCC_Model():
 if __name__ == '__main__':
 
     model = ALOCC_Model(dataset_name='mnist', input_height=28,input_width=28)
-    model.train(epochs=10, batch_size=500, sample_interval=9000)
+    #model.train(epochs=10, batch_size=500, sample_interval=9000)
 
+    model.train(epochs=10, batch_size=200, sample_interval=5000) # Ver. AutoEncoder --> qcolt
+
+    
     #model = ALOCC_Model(dataset_name='landsat', input_height=28,input_width=28)
     #model.train(epochs=5, batch_size=128, sample_interval=500)
 

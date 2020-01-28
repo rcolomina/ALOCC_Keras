@@ -21,23 +21,44 @@ class LandsatDataLoader:
     def __init__(self, input_folder):
         self.X_train = None
         self.input_files  = [f for f in find_list_files("LS*png",input_folder)]
+        print("Number of input files loaded:",len(self.input_files))
         
-    def load_data(self):
+    def _load_image(self,ifile):
+        image = cv2.imread(ifile)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+    def load_data(self, randomization=False):
         #num_samples = len(input_files)
         #print(len(self.input_files))
         list_samples = []
+        
         for ifile in self.input_files: 
-            
-            image = cv2.imread(ifile)
-            image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            #print(list(image_gray.flatten()))
-            #print(image_gray.shape)
-            list_samples.append(image_gray)
+            list_samples.append(self._load_image(ifile)) 
+
+
+        if randomization:
+            seed=42
+            print("Applying Randomization on list of input samples seed {}".format(seed))
+            import random
+            random.seed(seed)
+            random.shuffle(list_samples)
             
         X_train = np.array(list_samples)
         self.X_train = X_train
         return X_train
 
+    def load_data_and_filenames(self):
+        filenames = []
+        list_samples = []
+        for ifile in self.input_files:             
+            list_samples.append(self._load_image(ifile))
+            filenames.append(ifile)
+            
+        X_train = np.array(list_samples)
+        self.X_train = X_train
+        return X_train, filenames
+        
+    
     def normal_sample(self):
         pass
 

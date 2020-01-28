@@ -20,6 +20,7 @@ import scipy
 import logging
 import matplotlib.pyplot as plt
 import os
+import cv2
 
 import numpy as np
 
@@ -27,15 +28,29 @@ from utils import *
 from kh_tools import *
 
 
+def load_input_data(input_folder, randomisation):            
+    from landsat_data_loader import LandsatDataLoader
+    # EXPERIMENT 3
+    #input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_03/nominal_chips/'
+    # EXPERIMENT 4
+    print("Loading Data from {} Randomisation {}".format(input_folder,randomisation))
+    landsatDataLoader = LandsatDataLoader(input_folder)            
+    X_train = landsatDataLoader.load_data(randomisation)
+    X_train = X_train / 255
+    print("Data Loaded and Normalised")
+    return X_train
+    
+
 class ALOCC_Model():
     def __init__(self,
-               input_height=28,input_width=28, output_height=28, output_width=28,
+               input_height=28,input_width=28,
+               output_height=28, output_width=28,
                attention_label=1, is_training=True,
                z_dim=100, gf_dim=16, df_dim=16, c_dim=3,
                dataset_name=None, dataset_address=None, input_fname_pattern=None,
                checkpoint_dir='checkpoint', log_dir='log', sample_dir='sample', r_alpha = 0.2,
                kb_work_on_patch=True, nd_patch_size=(10, 10), n_stride=1,
-               n_fetch_data=10):
+               n_fetch_data=10, randomization=False, train_data=None):
         """
         This is the main class of our Adversarially Learned One-Class Classifier for Novelty Detection.
         :param sess: TensorFlow session.
@@ -87,37 +102,51 @@ class ALOCC_Model():
 
         self.attention_label = attention_label
         if self.is_training:
-          logging.basicConfig(filename='ALOCC_loss.log', level=logging.INFO)
+            logging.basicConfig(filename='ALOCC_loss.log', level=logging.INFO)
 
-        if self.dataset_name == 'mnist':
-            
-            from landsat_data_loader import LandsatDataLoader
-            root = "/QCOLT/QCOLT_DEV_OPS/"
-            #root = "/media/rcolomina/Toshiba640"
-            input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_02/nominal_chips/'            
-            landsatDataLoader = LandsatDataLoader(input_folder)            
-            X_train = landsatDataLoader.load_data()
-            X_train = X_train / 255
+        #self.data
+        #def load_input_data(self, input_folder, randomisation):            
+        #if self.dataset_name == 'mnist':            
+        #from landsat_data_loader import LandsatDataLoader
+        #root = "/QCOLT/QCOLT_DEV_OPS/"
+        #root = "/media/rcolomina/Toshiba640"
+        # EXPERIMENT 3
+        #input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_03/nominal_chips/'
+        # EXPERIMENT 4
+        #input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_04/nominal_chips/'
+        #print("Loading Data")
+        #landsatDataLoader = LandsatDataLoader(input_folder)            
+        #X_train = landsatDataLoader.load_data(randomisation)
+        #X_train = X_train / 255
+        #print("Data Has been Loaded")
 
-            self.data = X_train.reshape(-1,28,28,1)
-            self.c_dim = 1
+        self.setup_train_data = False
+        
+        self.c_dim = 1
             
-            #(X_train, y_train), (_, _) = mnist.load_data()                        
-            #Make the data range between 0~1.
-            #X_train = X_train / 255
-            #specific_idx = np.where(y_train == self.attention_label)[0]
-            #self.data = X_train[specific_idx].reshape(-1, 28, 28, 1)
-            #self.c_dim = 1
+        #(X_train, y_train), (_, _) = mnist.load_data()              
+        #Make the data range between 0~1.
+        #X_train = X_train / 255
+        #specific_idx = np.where(y_train == self.attention_label)[0]
+        #self.data = X_train[specific_idx].reshape(-1, 28, 28, 1)
+        #self.c_dim = 1
             
-        elif self.dataset_name == 'landsat':
-            pass
-            
-        else:
-            assert('Error in loading dataset')
-
+        #elif self.dataset_name == 'landsat':
+        #    pass
+        #else:
+        #    assert('Error in loading dataset')
+        
         self.grayscale = (self.c_dim == 1)
+        self.data_loaded = True
         self.build_model()
+        self.model_built = True
 
+    def set_train_data(self,train_data):        
+        X_train = train_data
+        self.data = X_train.reshape(-1,28,28,1)
+        self.setup_train_data = True
+            
+        
     def build_generator_qcolt_simple(self, input_shape, code_size = 28):
 
         model = Sequential()
@@ -160,7 +189,7 @@ class ALOCC_Model():
     def build_generator_qcolt_deep(self, input_shape):
         input_img = Input(shape=input_shape, name='z')
 
-        print(input_img.shape)
+        #print(input_img.shape)
         #exit()
         
         x = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
@@ -377,7 +406,10 @@ class ALOCC_Model():
         self.adversarial_model.summary()
 
     
-    def train(self, epochs, batch_size = 128, sample_interval=500):
+    def train(self, epochs, batch_size = 128, sample_interval=500, sigma = 0.155):
+        assert self.setup_train_data,"Set Train data before to train"
+        
+        self.sigma = sigma
         # Make log folder if not exist.
         log_dir = os.path.join(self.log_dir, self.model_dir)
         os.makedirs(log_dir, exist_ok=True)
@@ -393,9 +425,8 @@ class ALOCC_Model():
         sample_inputs = np.array(sample).astype(np.float32)
         os.makedirs(self.sample_dir, exist_ok=True)
 
-        import cv2
-        cv2.imwrite('./{}/train_input_samples.jpg'.format(self.sample_dir), montage(sample_inputs
-                                                                                    [:,:,:,0]))
+        cv2.imwrite('./{}/train_input_samples.jpg'.format(self.sample_dir),
+                    montage(sample_inputs[:,:,:,0]))
         
         counter = 1
         # Record generator/R network reconstruction training losses.
@@ -404,10 +435,8 @@ class ALOCC_Model():
 
         # Load traning data, add random noise.
         if self.dataset_name == 'mnist':
-            sample_w_noise = get_noisy_data(self.data)
-        elif self.dataset_name == 'landsat':
-            # TODO: apply noise to image
-            pass
+            print("Sigma Noise selected to get noisy data = {}".format(sigma))
+            sample_w_noise = get_noisy_data(self.data, sigma = sigma)
             
         # Adversarial ground truths
         ones = np.ones((batch_size, 1))
@@ -450,14 +479,14 @@ class ALOCC_Model():
                 logging.info(msg)
                 if np.mod(counter, sample_interval) == 0:
                     if self.dataset_name == 'mnist':
-                        samples = self.generator.predict(sample_inputs)
+                        samples    = self.generator.predict(sample_inputs)
                         manifold_h = int(np.ceil(np.sqrt(samples.shape[0])))
                         manifold_w = int(np.floor(np.sqrt(samples.shape[0])))
                         save_images(samples, [manifold_h, manifold_w],
                             './{}/train_{:02d}_{:04d}.png'.format(self.sample_dir, epoch, idx))
 
             # Save the checkpoint end of each epoch.
-            self.save(epoch)
+            self.save(epoch,batch_size,sample_interval)
             #plt.plot(plot_epochs,plot_g_recon_losses)
             #plt.savefig('plot_g_recon_losses_{}.png'.format(epoch))
 
@@ -475,24 +504,68 @@ class ALOCC_Model():
             self.dataset_name,
             self.output_height, self.output_width)
 
-    def save(self, step):
+    def save(self, step, batch_size, sample_interval):
         """Helper method to save model weights.
         
         Arguments:
             step {[type]} -- [description]
         """
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        model_name = 'ALOCC_Model_{}.h5'.format(step)
+        noise = int(self.sigma*10000)
+        model_name = 'ALOCC_ep_{}_iz_{}_bs_{}_si_{}_sig_{}.h5'.format(step,
+                                                                     self.input_height,
+                                                                     batch_size,
+                                                                     sample_interval,
+                                                                     noise)
+        
         self.adversarial_model.save_weights(os.path.join(self.checkpoint_dir, model_name))
 
 
 if __name__ == '__main__':
 
-    model = ALOCC_Model(dataset_name='mnist', input_height=28,input_width=28)
+    # EXP03
+    root = "/QCOLT/QCOLT_DEV_OPS/"
+    input_folder = root + '/TDS_NOVELTY_DETECTION/EXP_03/nominal_chips/'
+    train_data = load_input_data(input_folder, False) 
+
+    
+    model = ALOCC_Model(dataset_name='mnist',
+                        input_height=28,
+                        input_width=28,
+                        train_data=(True,train_data))
+    model.set_train_data(train_data)
+
     #model.train(epochs=10, batch_size=500, sample_interval=9000)
 
-    model.train(epochs=10, batch_size=200, sample_interval=5000) # Ver. AutoEncoder --> qcolt
+    # EXP03 Dataset 45K (28x28)    
+    model.train(epochs=10, batch_size=500, sample_interval=5000)
 
+    # Observations
+    # Sigma high >1 or low <0.01 produces discriminator output cloase to 0 in training samples which is bad
+    # bathc size 500 and sample Interval 5000 produces good results WORKS!! why???
+    
+        
+    # EXP04 DataSet 120K (28x28) : Small batch size ==> Stochastic Gradient Descent (better generatization)
+    # sigma 0.155
+    # Results: g_recon_loss stable around 0.5
+    #model.train(epochs=10, batch_size=500, sample_interval = 10000, sigma = 0.5) # Ver. AutoEncoder --> qcolt
+
+    # Observations:
+    
+    # Increasing sigma (to gen noisy data) improves stability (use sigma 0.5)
+    # Low batch sizes (50) decrease stability (better use batch size 500)
+    # Changing sample interval afects first epocs of the training loss
+    # Randomization on input samples produces a lot of inestability
+
+    # EXPERIMENTS
+    # dataset  epocs batch  sample sigma  d_loss g_loss g_recon_loss randmized stable
+    # -------  ----- -----  ------  ----  -----  ------ ------------ --------- ------ 
+    #  exp_04      5   500  50000    0.5  1.395  0.888   0.888       NO        YES    
+    #  exp_04      5   500  50000    0.5  0.315  0.5357  5.357       YES       NO
+    
+    #  exp_04      5   250  10000    0.5  1.395  0.888   0.888       NO
+
+    
     
     #model = ALOCC_Model(dataset_name='landsat', input_height=28,input_width=28)
     #model.train(epochs=5, batch_size=128, sample_interval=500)

@@ -160,16 +160,63 @@ class ALOCC_Model():
 
         return model
                 
-        
-    def build_generator_qcolt(self, input_shape):
+
+    def build_generator_qcolt_deep_3(self, input_shape, batch_normalization=True):
         input_img = Input(shape=input_shape, name='z')
         
         x = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)
+        if batch_normalization:
+            x = BatchNormalization()(x)
         x = MaxPooling2D((2,2), padding='same')(x)
         x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
-        x = MaxPooling2D((2,2), padding='same')(x)
         x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        if batch_normalization:
+            x = BatchNormalization()(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
 
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)        
+        if batch_normalization:
+            x = BatchNormalization()(x)
+        
+        encoded = MaxPooling2D((2,2), padding='same')(x)
+
+        # this point representaion is (4,4,8) i.e. 128 dimensional
+
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(encoded)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)        
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)        
+        x = UpSampling2D((2,2))(x)
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(x)        
+        x = Conv2D(16, (3,3), activation='relu')(x)
+        x = UpSampling2D((2,2))(x)
+        
+        decoded = Conv2D(1, (3,3), activation='sigmoid', padding='same')(x)
+
+        autoencoder = Model(input_img, decoded)
+        return autoencoder
+
+    
+    def build_generator_qcolt(self, input_shape, batch_normalization=True):
+        input_img = Input(shape=input_shape, name='z')
+        
+        x = Conv2D(16, (3,3), activation='relu', padding='same')(input_img)
+        if batch_normalization:
+            x = BatchNormalization()(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        if batch_normalization:
+            x = BatchNormalization()(x)
+        x = MaxPooling2D((2,2), padding='same')(x)
+
+        x = Conv2D(8, (3,3), activation='relu', padding='same')(x)
+        if batch_normalization:
+            x = BatchNormalization()(x)
+        
         encoded = MaxPooling2D((2,2), padding='same')(x)
 
         # this point representaion is (4,4,8) i.e. 128 dimensional
@@ -338,21 +385,25 @@ class ALOCC_Model():
         """
 
         image = Input(shape=input_shape, name='d_input')
-        x = Conv2D(filters=self.df_dim, kernel_size = 5, strides=2, padding='same',
+        x = Conv2D(filters=self.df_dim, kernel_size = 5,
+                   strides=2, padding='same',
                    name='d_h0_conv')(image)
         x = LeakyReLU()(x)
 
-        x = Conv2D(filters=self.df_dim*2, kernel_size = 5, strides=2, padding='same',
+        x = Conv2D(filters=self.df_dim*2, kernel_size = 5,
+                   strides=2, padding='same',
                    name='d_h1_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
 
-        x = Conv2D(filters=self.df_dim*4, kernel_size = 5, strides=2, padding='same',
+        x = Conv2D(filters=self.df_dim*4, kernel_size = 5,
+                   strides=2, padding='same',
                    name='d_h2_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
 
-        x = Conv2D(filters=self.df_dim*8, kernel_size = 5, strides=2, padding='same',
+        x = Conv2D(filters=self.df_dim*8, kernel_size = 5,
+                   strides=2, padding='same',
                    name='d_h3_conv')(x)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
@@ -538,11 +589,18 @@ if __name__ == '__main__':
     #model.train(epochs=10, batch_size=500, sample_interval=9000)
 
     # EXP03 Dataset 45K (28x28)    
-    model.train(epochs=10, batch_size=500, sample_interval=5000)
+    #model.train(epochs=10, batch_size=500, sample_interval=5000) # this worked on discriminator values centered around 0.7
 
-    # Observations
+    #model.train(epochs=10, batch_size=500, sample_interval=10000, sigma=0.5) # sigma 0.5 is yielding discriminator always close to 0.0 on traininng data points
+
+    #model.train(epochs=10, batch_size=500, sample_interval=10000, sigma=0.01) # simgma 0.01 is yielding discriminator output around 0.25 on training data points
+
+    model.train(epochs=10, batch_size=500, sample_interval=10000, sigma=0.1) # using batch normalisation in the autoencoder
+
+    
+    # Observations:
     # Sigma high >1 or low <0.01 produces discriminator output cloase to 0 in training samples which is bad
-    # bathc size 500 and sample Interval 5000 produces good results WORKS!! why???
+    # bath size 500 and sample Interval 5000 produces good results WORKS!! why???
     
         
     # EXP04 DataSet 120K (28x28) : Small batch size ==> Stochastic Gradient Descent (better generatization)
